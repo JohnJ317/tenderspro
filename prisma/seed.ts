@@ -77,7 +77,7 @@ async function main() {
   });
   console.log(`✅ Cabinet: ${cabinet.name}`);
 
-  const passwordHash = await bcrypt.hash('Tender@2026', 12);
+  const passwordHash = await bcrypt.hash('Tender@2026', 10);
   const admin = await prisma.user.create({
     data: {
       cabinetId: cabinet.id,
