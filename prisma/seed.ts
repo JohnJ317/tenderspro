@@ -13,14 +13,44 @@ import {
   PricingCoefficientCategory,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { DEFAULT_COEFFICIENTS } from '../src/modules/pricing-coefficients/default-coefficients';
 
 const prisma = new PrismaClient();
+
+const DEFAULT_COEFFICIENTS: Array<{
+  code: string;
+  label: string;
+  category: PricingCoefficientCategory;
+  multiplier: number;
+  description?: string;
+  sortOrder: number;
+}> = [
+  { code: 'SECTOR_STANDARD', label: 'Secteur standard', category: 'SECTOR', multiplier: 1.00, sortOrder: 10 },
+  { code: 'SECTOR_BANK_INSURANCE', label: 'Banque / Assurance', category: 'SECTOR', multiplier: 1.25, sortOrder: 11, description: 'Secteur fortement réglementé — conformité BCEAO/CIMA, procédures renforcées' },
+  { code: 'SECTOR_PUBLIC', label: 'Secteur public', category: 'SECTOR', multiplier: 1.15, sortOrder: 12, description: 'Administrations, collectivités — procédures marchés publics' },
+  { code: 'SECTOR_NGO_DONOR', label: 'Projet financé bailleur', category: 'SECTOR', multiplier: 1.20, sortOrder: 13, description: 'BM, BAD, UE, AFD — normes comptables et audit strictes' },
+  { code: 'SECTOR_INDUSTRY', label: 'Industrie', category: 'SECTOR', multiplier: 1.10, sortOrder: 14 },
+  { code: 'SECTOR_TELECOM', label: 'Télécom / Médias', category: 'SECTOR', multiplier: 1.12, sortOrder: 15 },
+  { code: 'COMPLEXITY_SIMPLE', label: 'Mission simple (PME mono-site)', category: 'COMPLEXITY', multiplier: 0.90, sortOrder: 20 },
+  { code: 'COMPLEXITY_STANDARD', label: 'Complexité standard', category: 'COMPLEXITY', multiplier: 1.00, sortOrder: 21 },
+  { code: 'COMPLEXITY_HIGH', label: 'Groupe multi-filiales', category: 'COMPLEXITY', multiplier: 1.15, sortOrder: 22 },
+  { code: 'COMPLEXITY_VERY_HIGH', label: 'Consolidation complexe multi-pays', category: 'COMPLEXITY', multiplier: 1.30, sortOrder: 23, description: 'Plusieurs entités dans plusieurs pays UEMOA/CEMAC ou international' },
+  { code: 'URGENCY_NORMAL', label: 'Délai standard', category: 'URGENCY', multiplier: 1.00, sortOrder: 30 },
+  { code: 'URGENCY_TIGHT', label: 'Délai serré', category: 'URGENCY', multiplier: 1.10, sortOrder: 31, description: "Mobilisation accélérée de l'équipe" },
+  { code: 'URGENCY_RUSH', label: 'Mission express', category: 'URGENCY', multiplier: 1.25, sortOrder: 32, description: 'Heures sup obligatoires, priorité absolue' },
+  { code: 'RECURRENCE_FIRST', label: 'Première mission (setup référentiel)', category: 'RECURRENCE', multiplier: 1.15, sortOrder: 40, description: 'Charge année 1 plus élevée : prise de connaissance, cartographie SI, constitution dossier' },
+  { code: 'RECURRENCE_NORMAL', label: 'Mission récurrente', category: 'RECURRENCE', multiplier: 1.00, sortOrder: 41 },
+  { code: 'RECURRENCE_FOLLOW_UP', label: 'Suite de mission précédente', category: 'RECURRENCE', multiplier: 0.95, sortOrder: 42, description: "Économie sur la prise de connaissance" },
+  { code: 'STRATEGIC_ENTRY', label: "Mission d'entrée (logo stratégique)", category: 'STRATEGIC', multiplier: 0.85, sortOrder: 50, description: 'Prix réduit volontairement pour gagner un client stratégique' },
+  { code: 'STRATEGIC_NORMAL', label: 'Stratégie standard', category: 'STRATEGIC', multiplier: 1.00, sortOrder: 51 },
+  { code: 'STRATEGIC_PREMIUM', label: 'Client premium / marge haute', category: 'STRATEGIC', multiplier: 1.10, sortOrder: 52 },
+  { code: 'GEOGRAPHY_LOCAL', label: 'Mission locale (siège du cabinet)', category: 'GEOGRAPHY', multiplier: 1.00, sortOrder: 60 },
+  { code: 'GEOGRAPHY_INTERIOR', label: 'Mission intérieur pays', category: 'GEOGRAPHY', multiplier: 1.08, sortOrder: 61, description: 'Déplacements et per diem à prévoir' },
+  { code: 'GEOGRAPHY_INTERNATIONAL', label: 'Multi-pays UEMOA/CEMAC', category: 'GEOGRAPHY', multiplier: 1.15, sortOrder: 62, description: 'Coordination multi-sites, déplacements internationaux' },
+];
 
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Clean slate (ordre : enfants d'abord)
   await prisma.competitiveIntel.deleteMany();
   await prisma.tenderPricing.deleteMany();
   await prisma.pricingCoefficient.deleteMany();
@@ -35,7 +65,6 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.cabinet.deleteMany();
 
-  // ---- Cabinet ----
   const cabinet = await prisma.cabinet.create({
     data: {
       name: 'International Audit & Conseil',
@@ -92,10 +121,14 @@ async function main() {
   });
   console.log('✅ Grille horaire');
 
-  // ---- Coefficients standards (systèmes) ----
   await prisma.pricingCoefficient.createMany({
     data: DEFAULT_COEFFICIENTS.map((c) => ({
-      ...c,
+      code: c.code,
+      label: c.label,
+      category: c.category,
+      multiplier: c.multiplier,
+      description: c.description,
+      sortOrder: c.sortOrder,
       cabinetId: cabinet.id,
       isSystem: true,
       isActive: true,
@@ -103,12 +136,11 @@ async function main() {
   });
   console.log(`✅ ${DEFAULT_COEFFICIENTS.length} coefficients de pricing`);
 
-  // ---- AO démos ----
   const tendersData = [
     {
       reference: 'MINSANTE-AO-2026-042',
       title: 'Audit comptable et financier - Ministère de la Santé CI (2026-2028)',
-      clientName: 'Ministère de la Santé - République de Côte d\'Ivoire',
+      clientName: "Ministère de la Santé - République de Côte d'Ivoire",
       sector: 'Santé publique', source: TenderSource.SIGMAP, type: TenderType.OPEN,
       country: Country.CI, stage: TenderStage.QUALIFICATION, isOpen: true,
       publishedAt: new Date('2026-04-01'), submissionDeadline: new Date('2026-05-15'),
@@ -177,7 +209,6 @@ async function main() {
   }
   console.log(`✅ ${createdTenders.length} AO démo`);
 
-  // ---- Events démos ----
   const eventsData = [
     {
       title: 'Conférence ONECCA Afrique 2026', type: EventType.CONFERENCE,
@@ -212,7 +243,6 @@ async function main() {
   }
   console.log(`✅ ${eventsData.length} manifestations démo`);
 
-  // ---- Simulation pricing démo pour SGBCI (AO en SUBMITTED) ----
   const sgbci = createdTenders.find((t) => t.reference === 'SGBCI-CAC-2026');
   if (sgbci) {
     const coefs = await prisma.pricingCoefficient.findMany({
@@ -221,17 +251,15 @@ async function main() {
         code: { in: ['SECTOR_BANK_INSURANCE', 'COMPLEXITY_HIGH', 'RECURRENCE_FIRST'] },
       },
     });
-    const coefSnap = coefs.map((c) => ({
+    const coefSnap = coefs.map((c: any) => ({
       code: c.code, label: c.label, category: c.category, multiplier: Number(c.multiplier),
     }));
-    const combinedMultiplier = coefSnap.reduce((acc, c) => acc * c.multiplier, 1);
-
+    const combinedMultiplier = coefSnap.reduce((acc: number, c: any) => acc * c.multiplier, 1);
     const hours = { associe: 60, manager: 120, senior: 400, junior: 300, assistant: 120 };
     const rates = { associe: 75_000, manager: 45_000, senior: 28_000, junior: 18_000, assistant: 10_000 };
     const labor = Object.entries(hours).reduce((a, [k, h]) => a + h * (rates as any)[k], 0);
-    const baseCost = labor + 2_500_000 + 0;
+    const baseCost = labor + 2_500_000;
     const adjustedCost = baseCost * combinedMultiplier;
-
     await prisma.tenderPricing.create({
       data: {
         tenderId: sgbci.id, name: 'Simulation initiale',
@@ -250,7 +278,6 @@ async function main() {
     console.log('✅ Simulation pricing démo pour SGBCI');
   }
 
-  // ---- Competitive intel démo ----
   const sotra = createdTenders.find((t) => t.reference === 'SOTRA-EVAL-2025');
   if (sotra) {
     await prisma.competitiveIntel.createMany({
@@ -266,7 +293,7 @@ async function main() {
           tenderId: sotra.id, competitorName: 'Deloitte CI',
           competitorPrice: null, currency: 'XOF',
           isWinner: false, source: 'RUMOR',
-          notes: 'Présent sur l\'appel d\'offres, prix non communiqué',
+          notes: "Présent sur l'appel d'offres, prix non communiqué",
           createdById: admin.id,
         },
       ],
