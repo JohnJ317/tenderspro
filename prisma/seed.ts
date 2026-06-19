@@ -21,7 +21,7 @@ async function main() {
     },
   });
 
-  const passwordHash = await bcrypt.hash('Tender@2026', 10);
+  const passwordHash = await bcrypt.hash('Tender@2026', 8);
 
   await prisma.user.create({
     data: {

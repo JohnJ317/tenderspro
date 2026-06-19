@@ -10,7 +10,7 @@ fi
 
 if [ "${SEED_ON_START:-false}" = "true" ]; then
   echo "🌱 SEED_ON_START=true → lancement du seed..."
-  npx ts-node prisma/seed.ts
+  npx ts-node --skip-project prisma/seed.ts
 fi
 
 exec node dist/main
