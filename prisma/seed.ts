@@ -38,7 +38,7 @@ async function main() {
   // ---- Cabinet ----
   const cabinet = await prisma.cabinet.create({
     data: {
-      name: 'Cabinet Kouassi & Associés',
+      name: 'International Audit & Conseil',
       country: Country.CI,
       currency: 'XOF',
       vatRate: 0.18,
@@ -48,22 +48,22 @@ async function main() {
   });
   console.log(`✅ Cabinet: ${cabinet.name}`);
 
-  const passwordHash = await bcrypt.hash('admin123', 12);
+  const passwordHash = await bcrypt.hash('Tender@2026', 12);
   const admin = await prisma.user.create({
     data: {
       cabinetId: cabinet.id,
-      email: 'admin@kouassi-associes.ci',
+      email: 'attobrajean31@gmail.com',
       passwordHash,
-      firstName: 'Kouamé', lastName: 'Kouassi',
+      firstName: 'Jean Jacques', lastName: 'ATTOBRA',
       role: Role.ADMIN_CABINET, grade: Grade.ASSOCIE,
     },
   });
   const manager = await prisma.user.create({
     data: {
       cabinetId: cabinet.id,
-      email: 'manager@kouassi-associes.ci',
+      email: 'jattobran@cabinet-iac.com',
       passwordHash,
-      firstName: 'Aminata', lastName: 'Diallo',
+      firstName: 'Jean', lastName: 'ATTOBRA',
       role: Role.MANAGER, grade: Grade.MANAGER,
     },
   });
@@ -215,7 +215,6 @@ async function main() {
   // ---- Simulation pricing démo pour SGBCI (AO en SUBMITTED) ----
   const sgbci = createdTenders.find((t) => t.reference === 'SGBCI-CAC-2026');
   if (sgbci) {
-    // Récupère les coefs qu'on va appliquer
     const coefs = await prisma.pricingCoefficient.findMany({
       where: {
         cabinetId: cabinet.id,
@@ -227,7 +226,6 @@ async function main() {
     }));
     const combinedMultiplier = coefSnap.reduce((acc, c) => acc * c.multiplier, 1);
 
-    // Charges : typique CAC banque
     const hours = { associe: 60, manager: 120, senior: 400, junior: 300, assistant: 120 };
     const rates = { associe: 75_000, manager: 45_000, senior: 28_000, junior: 18_000, assistant: 10_000 };
     const labor = Object.entries(hours).reduce((a, [k, h]) => a + h * (rates as any)[k], 0);
@@ -277,7 +275,7 @@ async function main() {
   }
 
   console.log('\n🎉 Seed terminé.');
-  console.log('\n🔑 Identifiants: admin@kouassi-associes.ci / admin123');
+  console.log('\n🔑 Identifiants: attobrajean31@gmail.com / Tender@2026');
 }
 
 main()
